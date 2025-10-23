@@ -8,13 +8,14 @@ set -e
 # Configuration
 # ============================================================================
 
-# Directories
-INPUT_DIR="test_input"
-OUTPUT_DIR="test_output"
-MODEL_DIR="models"
+# Directories (relative to repo root)
+REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+INPUT_DIR="$REPO_ROOT/test_input"
+OUTPUT_DIR="$REPO_ROOT/test_output"
+MODEL_DIR="$REPO_ROOT/models"
 
 # Binary and model paths
-BINARY_PATH="./target/release/rembg-rs"
+BINARY_PATH="$REPO_ROOT/target/release/rembg-rs"
 MODEL_FILE="$MODEL_DIR/u2net.onnx"
 
 # Supported image extensions
@@ -53,14 +54,15 @@ echo ""
 # Check if binary exists
 if [ ! -f "$BINARY_PATH" ]; then
     echo "❌ Binary not found at: $BINARY_PATH"
-    echo "Run: cargo build --release"
+    echo "Run: ./test-build.sh or cargo build --release"
     exit 1
 fi
 
 # Check if models directory exists
+# If models directory is missing, attempt to download
 if [ ! -d "$MODEL_DIR" ]; then
     echo "⚠️  Models directory not found. Running download script..."
-    ./download_model.sh
+    "$REPO_ROOT/download_model.sh"
     echo ""
 fi
 
@@ -144,8 +146,8 @@ for INPUT_IMAGE in "${VALID_IMAGES[@]}"; do
         CMD_ARGS+=(-s)
     fi
     
-    # Run background removal with library path set
-    DYLD_LIBRARY_PATH="./target/release:$DYLD_LIBRARY_PATH" "$BINARY_PATH" "${CMD_ARGS[@]}"
+    # Run background removal with library path set to the release dir
+    DYLD_LIBRARY_PATH="$REPO_ROOT/target/release:$DYLD_LIBRARY_PATH" "$BINARY_PATH" "${CMD_ARGS[@]}"
     
     echo "    ✅ Saved: $OUTPUT_IMAGE"
     echo ""
