@@ -1,5 +1,6 @@
+use crate::RemovalOptions;
 use crate::error::{RembgError, Result};
-use image::{DynamicImage, ImageBuffer, Rgb, Rgba, RgbaImage, imageops::FilterType, GenericImageView};
+use image::{DynamicImage, ImageBuffer, Rgb, Rgba, RgbaImage, imageops::FilterType};
 use ndarray::{Array4, Axis};
 use std::path::Path;
 
@@ -22,21 +23,17 @@ impl ImageProcessor {
     ) -> Result<Array4<f32>> {
         // Convert to RGB if not already
         let rgb_img = img.to_rgb8();
-        
+
         // Resize image
-        let resized = image::imageops::resize(
-            &rgb_img,
-            target_width,
-            target_height,
-            FilterType::Lanczos3,
-        );
+        let resized =
+            image::imageops::resize(&rgb_img, target_width, target_height, FilterType::Lanczos3);
 
         // Convert to normalized float array with shape [1, 3, height, width]
         let mut array = Array4::<f32>::zeros((1, 3, target_height as usize, target_width as usize));
 
         for (x, y, pixel) in resized.enumerate_pixels() {
             let [r, g, b] = pixel.0;
-            
+
             // Normalize to [0, 1] and then to [-1, 1] for some models
             array[[0, 0, y as usize, x as usize]] = (r as f32 / 255.0 - 0.485) / 0.229;
             array[[0, 1, y as usize, x as usize]] = (g as f32 / 255.0 - 0.456) / 0.224;
@@ -56,10 +53,10 @@ impl ImageProcessor {
         let mask_data = temp_axis.index_axis(Axis(0), 0);
 
         let (model_height, model_width) = mask_data.dim();
-        
+
         // Create grayscale image from mask
         let mut mask_img = image::GrayImage::new(model_width as u32, model_height as u32);
-        
+
         for (x, y, pixel) in mask_img.enumerate_pixels_mut() {
             let mask_value = mask_data[[y as usize, x as usize]];
             // Apply sigmoid and convert to 0-255 range
@@ -82,48 +79,63 @@ impl ImageProcessor {
     pub fn apply_mask(
         original: &DynamicImage,
         mask: &ImageBuffer<image::Luma<u8>, Vec<u8>>,
-        threshold: f32,
-        binary: bool,
+        options: &RemovalOptions,
     ) -> Result<RgbaImage> {
+        // Convert input image to RGBA for easy alpha manipulation
         let rgba_img = original.to_rgba8();
         let (width, height) = rgba_img.dimensions();
-        
+
+        // Check that mask and image have the same dimensions
         if mask.dimensions() != (width, height) {
             return Err(RembgError::PreprocessingError(
-                "Mask dimensions don't match original image".to_string()
+                "Mask dimensions don't match original image".to_string(),
             ));
         }
 
         let mut result = RgbaImage::new(width, height);
-        let threshold_u8 = (threshold * 255.0) as u8;
+        let thr_u8 = options.threshold;
+        let thr_f = thr_u8 as f32;
 
-        for (x, y, original_pixel) in rgba_img.enumerate_pixels() {
-            let mask_pixel = mask.get_pixel(x, y);
-            let mask_value = mask_pixel.0[0];
-            
-            // Apply threshold
-            let alpha = if binary {
-                // Binary mode: either fully transparent or fully opaque
-                if mask_value > threshold_u8 { 255 } else { 0 }
+        // Precompute scaling factor for smooth mode:
+        // alpha = (mask - threshold) * (255 / (255 - threshold))
+        // This avoids division in every loop iteration.
+        let smooth_scale = if thr_u8 < 255 {
+            Some(255.0 / (255.0 - thr_f))
+        } else {
+            None // cannot divide if threshold == 255
+        };
+
+        // Iterate over each pixel
+        for (x, y, src) in rgba_img.enumerate_pixels() {
+            let mask_value = mask.get_pixel(x, y).0[0];
+
+            // Compute alpha depending on the mode
+            let alpha: u8 = if options.binary {
+                // Binary mode:
+                // If mask >= threshold → fully opaque
+                // Otherwise → fully transparent
+                if mask_value >= thr_u8 { 255 } else { 0 }
             } else {
-                // Smooth mode: apply threshold and normalize
-                if mask_value < threshold_u8 {
-                    0
-                } else {
-                    // Normalize above threshold to 0-255 range
-                    let normalized = ((mask_value as f32 - threshold * 255.0) / (255.0 - threshold * 255.0) * 255.0) as u8;
-                    normalized
+                // Smooth mode:
+                match smooth_scale {
+                    Some(scale) => {
+                        // Linear normalization above the threshold
+                        // Values below threshold → 0
+                        // Values above → scaled to 0–255 range
+                        let mv = mask_value as f32;
+                        let a = ((mv - thr_f) * scale * 255.0).clamp(0.0, 255.0).round() as u8;
+                        a
+                    }
+                    None => {
+                        // Special case when threshold == 255:
+                        // Only pure white pixels stay visible
+                        if mask_value == 255 { 255 } else { 0 }
+                    }
                 }
             };
-            
-            let new_pixel = Rgba([
-                original_pixel.0[0],
-                original_pixel.0[1], 
-                original_pixel.0[2],
-                alpha,
-            ]);
-            
-            result.put_pixel(x, y, new_pixel);
+
+            // Write the resulting RGBA pixel with computed alpha
+            result.put_pixel(x, y, Rgba([src.0[0], src.0[1], src.0[2], alpha]));
         }
 
         Ok(result)
@@ -131,13 +143,9 @@ impl ImageProcessor {
 
     /// Save the processed image
     #[allow(dead_code)]
-    pub fn save_image<P: AsRef<Path>>(
-        img: &RgbaImage,
-        path: P,
-        quality: u8,
-    ) -> Result<()> {
+    pub fn save_image<P: AsRef<Path>>(img: &RgbaImage, path: P, quality: u8) -> Result<()> {
         let path = path.as_ref();
-        
+
         match path.extension().and_then(|s| s.to_str()) {
             Some("png") => {
                 img.save(path)?;
@@ -147,31 +155,28 @@ impl ImageProcessor {
                 let rgb_img = ImageBuffer::from_fn(img.width(), img.height(), |x, y| {
                     let rgba = img.get_pixel(x, y);
                     let alpha = rgba.0[3] as f32 / 255.0;
-                    
+
                     // Blend with white background
                     let r = ((rgba.0[0] as f32 * alpha) + (255.0 * (1.0 - alpha))) as u8;
                     let g = ((rgba.0[1] as f32 * alpha) + (255.0 * (1.0 - alpha))) as u8;
                     let b = ((rgba.0[2] as f32 * alpha) + (255.0 * (1.0 - alpha))) as u8;
-                    
+
                     Rgb([r, g, b])
                 });
-                
+
                 let mut output = std::fs::File::create(path)?;
-                let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, quality);
+                let encoder =
+                    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, quality);
                 rgb_img.write_with_encoder(encoder)?;
             }
             Some("webp") => {
                 img.save(path)?;
             }
             Some(ext) => {
-                return Err(RembgError::UnsupportedFormat(
-                    ext.to_string()
-                ));
+                return Err(RembgError::UnsupportedFormat(ext.to_string()));
             }
             None => {
-                return Err(RembgError::UnsupportedFormat(
-                    "unknown".to_string()
-                ));
+                return Err(RembgError::UnsupportedFormat("unknown".to_string()));
             }
         }
 
@@ -180,25 +185,30 @@ impl ImageProcessor {
 
     /// Save mask as RGBA image with alpha channel (mask value becomes alpha)
     #[allow(dead_code)]
-    pub fn save_mask(mask: &ImageBuffer<image::Luma<u8>, Vec<u8>>, path: &Path, quality: u8) -> Result<()> {
+    pub fn save_mask(
+        mask: &ImageBuffer<image::Luma<u8>, Vec<u8>>,
+        path: &Path,
+        quality: u8,
+    ) -> Result<()> {
         let (width, height) = mask.dimensions();
-        
+
         // Create RGBA image where mask value becomes alpha channel
         // White in mask = fully opaque white, Black in mask = fully transparent
         let mut rgba_img = RgbaImage::new(width, height);
-        
+
         for (x, y, pixel) in mask.enumerate_pixels() {
             let alpha = pixel.0[0]; // Use mask value as alpha
             rgba_img.put_pixel(x, y, Rgba([255, 255, 255, alpha]));
         }
-        
+
         let img = DynamicImage::ImageRgba8(rgba_img);
-        
+
         // Save based on extension
-        let extension = path.extension()
+        let extension = path
+            .extension()
             .and_then(|s| s.to_str())
             .map(|s| s.to_lowercase());
-        
+
         match extension.as_deref() {
             Some("png") => {
                 img.save(path)?;
@@ -207,29 +217,21 @@ impl ImageProcessor {
                 // JPEG doesn't support transparency, convert to RGB with white background
                 let rgb_img = img.to_rgb8();
                 let mut output = std::fs::File::create(path)?;
-                let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, quality);
+                let encoder =
+                    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, quality);
                 rgb_img.write_with_encoder(encoder)?;
             }
             Some("webp") => {
                 img.save(path)?;
             }
             Some(ext) => {
-                return Err(RembgError::UnsupportedFormat(
-                    ext.to_string()
-                ));
+                return Err(RembgError::UnsupportedFormat(ext.to_string()));
             }
             None => {
-                return Err(RembgError::UnsupportedFormat(
-                    "unknown".to_string()
-                ));
+                return Err(RembgError::UnsupportedFormat("unknown".to_string()));
             }
         }
-        
-        Ok(())
-    }
 
-    /// Get image dimensions
-    pub fn get_dimensions(img: &DynamicImage) -> (u32, u32) {
-        img.dimensions()
+        Ok(())
     }
 }

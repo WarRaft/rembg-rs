@@ -25,12 +25,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Configure removal options
     let options = RemovalOptions::default()
-        .with_threshold(0.5)
+        .with_threshold(160)
         .with_binary_mode(false);
 
     // Remove background
     println!("🖼️  Processing image...");
-    let result = rembg.remove_background(img, options)?;
+    let result = rembg.remove_background(img, &options)?;
     println!("✅ Processing complete\n");
 
     // Save the result

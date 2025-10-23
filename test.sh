@@ -24,13 +24,14 @@ IMAGE_EXTENSIONS=("jpg" "jpeg" "png" "JPG" "JPEG" "PNG")
 # Output file suffix
 OUTPUT_SUFFIX="_no_bg"
 
-# Mask threshold (0.0 to 1.0) - higher values = more aggressive background removal
+# Mask threshold (0–255) – higher values = more aggressive background removal
 # Recommended values:
-# 0.3-0.4: Soft edges with semi-transparency (natural blending)
-# 0.5: Balanced (default)
-# 0.6-0.7: Stronger cutout, cleaner edges
-# 0.8+: Very aggressive removal (may cut into object)
-THRESHOLD="0.6"
+# 76–102: Soft edges with semi-transparency (natural blending)
+# 128: Balanced (default)
+# 153–179: Stronger cutout, cleaner edges
+# 204+: Very aggressive removal (may cut into object)
+THRESHOLD="160"
+
 
 # Binary mode (true/false) - if true, creates hard cutout without semi-transparency
 # Recommended: true for clean cutouts, false for natural edges

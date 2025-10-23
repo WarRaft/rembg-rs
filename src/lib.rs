@@ -48,7 +48,7 @@ mod model;
 
 pub use error::{RembgError, Result};
 
-use image::{DynamicImage, ImageBuffer, Luma, RgbaImage};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Luma, RgbaImage};
 use image_processor::ImageProcessor;
 use model::ModelManager;
 
@@ -122,9 +122,9 @@ impl Rembg {
     pub fn remove_background(
         &mut self,
         image: DynamicImage,
-        options: RemovalOptions,
+        options: &RemovalOptions,
     ) -> Result<RemovalResult> {
-        let (original_width, original_height) = ImageProcessor::get_dimensions(&image);
+        let (original_width, original_height) = image.dimensions();
 
         // Preprocess image for model input (320x320 is standard for U2-Net)
         let preprocessed = ImageProcessor::preprocess_for_model(&image, 320, 320)?;
@@ -136,8 +136,7 @@ impl Rembg {
         let mask = ImageProcessor::postprocess_mask(mask_output, original_width, original_height)?;
 
         // Apply mask to original image
-        let result_image =
-            ImageProcessor::apply_mask(&image, &mask, options.threshold, options.binary)?;
+        let result_image = ImageProcessor::apply_mask(&image, &mask, &options)?;
 
         Ok(RemovalResult {
             image: result_image,
@@ -149,12 +148,12 @@ impl Rembg {
 /// Options for background removal
 #[derive(Debug, Clone)]
 pub struct RemovalOptions {
-    /// Threshold for alpha matting (0.0-1.0).
+    /// Threshold for alpha matting (0–255).
     /// Higher values = more aggressive background removal.
-    /// - 0.3-0.4: Soft edges with semi-transparency
-    /// - 0.5: Balanced (default)
-    /// - 0.6-0.7: Stronger cutout, cleaner edges
-    pub threshold: f32,
+    /// - 76–102: Soft edges with semi-transparency (≈0.3–0.4)
+    /// - 128: Balanced (default, ≈0.5)
+    /// - 153–179: Stronger cutout, cleaner edges (≈0.6–0.7)
+    pub threshold: u8,
 
     /// If true, creates hard cutout without semi-transparency.
     /// If false, allows soft edges for more natural blending.
@@ -164,7 +163,7 @@ pub struct RemovalOptions {
 impl Default for RemovalOptions {
     fn default() -> Self {
         Self {
-            threshold: 0.5,
+            threshold: 160,
             binary: false,
         }
     }
@@ -176,9 +175,9 @@ impl RemovalOptions {
         Self::default()
     }
 
-    /// Set the threshold value (0.0-1.0)
-    pub fn with_threshold(mut self, threshold: f32) -> Self {
-        self.threshold = threshold.clamp(0.0, 1.0);
+    /// Set the threshold value (0-255)
+    pub fn with_threshold(mut self, threshold: u8) -> Self {
+        self.threshold = threshold.clamp(0, 255);
         self
     }
 

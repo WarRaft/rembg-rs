@@ -10,11 +10,7 @@ use std::path::PathBuf;
 )]
 pub struct Args {
     /// Input image file path
-    #[arg(
-        short = 'i',
-        long = "input",
-        help = "Path to the input image file"
-    )]
+    #[arg(short = 'i', long = "input", help = "Path to the input image file")]
     pub input: PathBuf,
 
     /// Output image file path
@@ -43,14 +39,14 @@ pub struct Args {
     )]
     pub quality: u8,
 
-    /// Alpha matting threshold (0.0-1.0)
+    /// Alpha matting threshold (0-255)
     #[arg(
         short = 't',
         long = "threshold",
-        default_value = "0.5",
-        help = "Threshold for alpha matting (0.0-1.0). Higher values = more aggressive removal"
+        default_value = "160",
+        help = "Threshold for alpha matting (0-255). Higher values = more aggressive removal"
     )]
-    pub threshold: f32,
+    pub threshold: u8,
 
     /// Enable binary mask mode (no transparency, just cut out)
     #[arg(

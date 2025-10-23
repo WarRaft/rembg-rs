@@ -26,10 +26,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Process with aggressive settings for clean cutout
     println!("\n🖼️  Processing with binary mode...");
     let options = RemovalOptions::new()
-        .with_threshold(0.6)      // Higher threshold
+        .with_threshold(160)      // Higher threshold
         .with_binary_mode(true);  // Clean cutout, no transparency
 
-    let result = rembg.remove_background(img, options)?;
+    let result = rembg.remove_background(img, &options)?;
     println!("✅ Processing complete\n");
 
     // Access the raw image data

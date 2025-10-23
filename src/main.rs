@@ -46,7 +46,7 @@ fn main() {
     println!("🖼️  Processing image...");
 
     // Process the image
-    let result = match rembg.remove_background(img, options) {
+    let result = match rembg.remove_background(img, &options) {
         Ok(result) => result,
         Err(e) => {
             eprintln!("❌ Error: {}", e);
@@ -83,7 +83,7 @@ fn main() {
 }
 
 /// Generate mask file path based on output path
-fn generate_mask_path(output_path: &std::path::Path) -> std::path::PathBuf {
+fn generate_mask_path(output_path: &Path) -> std::path::PathBuf {
     let file_stem = output_path
         .file_stem()
         .and_then(|s| s.to_str())
