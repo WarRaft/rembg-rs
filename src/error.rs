@@ -1,15 +1,35 @@
+//! Error types for rembg-rs library
+
 use std::fmt;
 
+/// Error types that can occur during background removal operations
 #[derive(Debug)]
 pub enum RembgError {
+    /// Image processing error from the `image` crate
     ImageError(image::ImageError),
+    
+    /// ONNX Runtime error
     OnnxError(ort::OrtError),
+    
+    /// I/O error (file operations)
     IoError(std::io::Error),
+    
+    /// Model file not found
     ModelNotFound(String),
+    
+    /// Invalid input provided
     InvalidInput(String),
+    
+    /// Unsupported image format
     UnsupportedFormat(String),
+    
+    /// Image preprocessing failed
     PreprocessingError(String),
+    
+    /// Tensor operation failed
     TensorError(String),
+    
+    /// Array shape error
     ShapeError(String),
 }
 

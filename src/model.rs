@@ -1,25 +1,18 @@
 use crate::error::{RembgError, Result};
 use ndarray::{Array, IxDyn};
-use ort::{Environment, GraphOptimizationLevel, SessionBuilder};
+use ort::{Environment, GraphOptimizationLevel, Session, SessionBuilder};
 use std::path::Path;
 
 pub struct ModelManager {
-    session: ort::Session,
+    session: Session,
 }
 
 impl ModelManager {
-    /// Create a new model manager and load the model
-    pub fn new(model_path: &str) -> Result<Self> {
-        let model_path = Path::new(model_path);
-        
-        if !model_path.exists() {
-            return Err(RembgError::ModelNotFound(
-                format!("Model file not found: {:?}", model_path)
-            ));
-        }
-
-        println!("📦 Loading ONNX model: {:?}", model_path);
-
+    /// Create a new model manager from model file
+    /// 
+    /// Uses memory mapping - OS decides whether to keep model in RAM or load on demand.
+    /// This is the most memory-efficient approach for long-running applications.
+    pub fn from_file(model_path: &Path) -> Result<Self> {
         // Initialize ONNX Runtime environment  
         let environment = Environment::builder()
             .with_name("rembg-rs")
@@ -27,13 +20,11 @@ impl ModelManager {
             .build()?
             .into_arc();
 
-        // Create session with the model file
+        // Create session with model file (uses memory mapping)
         let session = SessionBuilder::new(&environment)?
             .with_optimization_level(GraphOptimizationLevel::Level3)?
             .with_intra_threads(4)?
             .with_model_from_file(model_path)?;
-
-        println!("✅ Model loaded successfully");
 
         Ok(Self { session })
     }

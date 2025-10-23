@@ -1,30 +1,39 @@
 [package]
 name = "rembg-rs"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["WarRaft"]
-description = "A Rust utility for removing backgrounds from art-style images using neural networks"
+description = "A Rust library for removing backgrounds from images using neural networks"
 license = "MIT"
 repository = "https://github.com/WarRaft/rembg-rs"
 keywords = ["image", "background-removal", "neural-network", "onnx", "computer-vision"]
-categories = ["multimedia::images", "command-line-utilities"]
+categories = ["multimedia::images", "science"]
+
+[lib]
+name = "rembg"
+path = "src/lib.rs"
 
 [[bin]]
 name = "rembg-rs"
 path = "src/main.rs"
+required-features = ["cli"]
+
+[features]
+default = []
+cli = ["dep:clap"]
 
 [dependencies]
-# Command-line argument parsing
-clap = { version = "4.4", features = ["derive"] }
-
 # Image processing
 image = { version = "0.25.8", features = ["png", "jpeg", "webp"] }
 
 # ONNX Runtime for neural network inference
-ort = { version = "1.16.3", features = ["copy-dylibs"] }
+ort = { version = "1.16", features = ["copy-dylibs"] }
 
-# Tensor operations
-ndarray = "0.16.1"
+# Tensor operations (must match ort's ndarray version - 0.15 for ort 1.16)
+ndarray = "0.15"
+
+# Command-line argument parsing (optional, only for CLI)
+clap = { version = "4.4", features = ["derive"], optional = true }
 
 [profile.release]
 lto = true

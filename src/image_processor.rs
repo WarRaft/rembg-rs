@@ -81,6 +81,8 @@ impl ImageProcessor {
     pub fn apply_mask(
         original: &DynamicImage,
         mask: &ImageBuffer<image::Luma<u8>, Vec<u8>>,
+        threshold: f32,
+        binary: bool,
     ) -> Result<RgbaImage> {
         let rgba_img = original.to_rgba8();
         let (width, height) = rgba_img.dimensions();
@@ -92,16 +94,32 @@ impl ImageProcessor {
         }
 
         let mut result = RgbaImage::new(width, height);
+        let threshold_u8 = (threshold * 255.0) as u8;
 
         for (x, y, original_pixel) in rgba_img.enumerate_pixels() {
             let mask_pixel = mask.get_pixel(x, y);
             let mask_value = mask_pixel.0[0];
             
+            // Apply threshold
+            let alpha = if binary {
+                // Binary mode: either fully transparent or fully opaque
+                if mask_value > threshold_u8 { 255 } else { 0 }
+            } else {
+                // Smooth mode: apply threshold and normalize
+                if mask_value < threshold_u8 {
+                    0
+                } else {
+                    // Normalize above threshold to 0-255 range
+                    let normalized = ((mask_value as f32 - threshold * 255.0) / (255.0 - threshold * 255.0) * 255.0) as u8;
+                    normalized
+                }
+            };
+            
             let new_pixel = Rgba([
                 original_pixel.0[0],
                 original_pixel.0[1], 
                 original_pixel.0[2],
-                mask_value, // Use mask value as alpha channel
+                alpha,
             ]);
             
             result.put_pixel(x, y, new_pixel);
@@ -155,6 +173,55 @@ impl ImageProcessor {
             }
         }
 
+        Ok(())
+    }
+
+    /// Save mask as RGBA image with alpha channel (mask value becomes alpha)
+    pub fn save_mask(mask: &ImageBuffer<image::Luma<u8>, Vec<u8>>, path: &Path, quality: u8) -> Result<()> {
+        let (width, height) = mask.dimensions();
+        
+        // Create RGBA image where mask value becomes alpha channel
+        // White in mask = fully opaque white, Black in mask = fully transparent
+        let mut rgba_img = RgbaImage::new(width, height);
+        
+        for (x, y, pixel) in mask.enumerate_pixels() {
+            let alpha = pixel.0[0]; // Use mask value as alpha
+            rgba_img.put_pixel(x, y, Rgba([255, 255, 255, alpha]));
+        }
+        
+        let img = DynamicImage::ImageRgba8(rgba_img);
+        
+        // Save based on extension
+        let extension = path.extension()
+            .and_then(|s| s.to_str())
+            .map(|s| s.to_lowercase());
+        
+        match extension.as_deref() {
+            Some("png") => {
+                img.save(path)?;
+            }
+            Some("jpg") | Some("jpeg") => {
+                // JPEG doesn't support transparency, convert to RGB with white background
+                let rgb_img = img.to_rgb8();
+                let mut output = std::fs::File::create(path)?;
+                let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, quality);
+                rgb_img.write_with_encoder(encoder)?;
+            }
+            Some("webp") => {
+                img.save(path)?;
+            }
+            Some(ext) => {
+                return Err(RembgError::UnsupportedFormat(
+                    ext.to_string()
+                ));
+            }
+            None => {
+                return Err(RembgError::UnsupportedFormat(
+                    "unknown".to_string()
+                ));
+            }
+        }
+        
         Ok(())
     }
 
