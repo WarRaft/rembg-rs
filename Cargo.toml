@@ -27,7 +27,9 @@ cli = ["dep:clap"]
 image = { version = "0.25.8", features = ["png", "jpeg", "webp"] }
 
 # ONNX Runtime for neural network inference
-ort = { version = "1.16", features = ["copy-dylibs"] }
+# For musl targets (Linux static builds), use load-dynamic feature
+# This requires libonnxruntime.so to be installed on the target system
+ort = { version = "1.16", features = ["load-dynamic"] }
 
 # Tensor operations (must match ort's ndarray version - 0.15 for ort 1.16)
 ndarray = "0.15"

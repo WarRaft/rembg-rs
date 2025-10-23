@@ -13,12 +13,22 @@ impl ModelManager {
     /// Uses memory mapping - OS decides whether to keep model in RAM or load on demand.
     /// This is the most memory-efficient approach for long-running applications.
     pub fn from_file(model_path: &Path) -> Result<Self> {
-        // Initialize ONNX Runtime environment  
-        let environment = Environment::builder()
-            .with_name("rembg-rs")
-            .with_log_level(ort::LoggingLevel::Warning)
-            .build()?
-            .into_arc();
+        // Initialize ONNX Runtime environment
+        // Catch panic if dynamic library loading is not supported (e.g., musl)
+        let environment = match std::panic::catch_unwind(|| {
+            Environment::builder()
+                .with_name("rembg-rs")
+                .with_log_level(ort::LoggingLevel::Warning)
+                .build()
+        }) {
+            Ok(Ok(env)) => env.into_arc(),
+            Ok(Err(e)) => return Err(e.into()),
+            Err(_) => {
+                return Err(RembgError::OnnxRuntimeNotAvailable(
+                    "Dynamic loading not supported on this platform. Install libonnxruntime.so to /usr/local/lib/".to_string()
+                ));
+            }
+        };
 
         // Create session with model file (uses memory mapping)
         let session = SessionBuilder::new(&environment)?
@@ -31,8 +41,6 @@ impl ModelManager {
 
     /// Run inference on preprocessed input
     pub fn run_inference(&self, input: &ndarray::Array4<f32>) -> Result<ndarray::Array4<f32>> {
-        println!("🔄 Running model inference...");
-        
         // Convert to dynamic dimensions with CowArray
         let input_shape: Vec<usize> = input.shape().to_vec();
         let input_data: Vec<f32> = input.iter().copied().collect();
@@ -76,7 +84,6 @@ impl ModelManager {
             ));
         };
 
-        println!("✅ Inference completed");
         Ok(output_4d)
     }
 }

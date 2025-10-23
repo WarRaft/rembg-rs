@@ -7,6 +7,7 @@ pub struct ImageProcessor;
 
 impl ImageProcessor {
     /// Load an image from file path
+    #[allow(dead_code)]
     pub fn load_image<P: AsRef<Path>>(path: P) -> Result<DynamicImage> {
         let img = image::open(path)?;
         Ok(img)
@@ -129,6 +130,7 @@ impl ImageProcessor {
     }
 
     /// Save the processed image
+    #[allow(dead_code)]
     pub fn save_image<P: AsRef<Path>>(
         img: &RgbaImage,
         path: P,
@@ -177,6 +179,7 @@ impl ImageProcessor {
     }
 
     /// Save mask as RGBA image with alpha channel (mask value becomes alpha)
+    #[allow(dead_code)]
     pub fn save_mask(mask: &ImageBuffer<image::Luma<u8>, Vec<u8>>, path: &Path, quality: u8) -> Result<()> {
         let (width, height) = mask.dimensions();
         

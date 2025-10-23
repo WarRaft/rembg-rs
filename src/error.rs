@@ -11,6 +11,9 @@ pub enum RembgError {
     /// ONNX Runtime error
     OnnxError(ort::OrtError),
     
+    /// ONNX Runtime library not available
+    OnnxRuntimeNotAvailable(String),
+    
     /// I/O error (file operations)
     IoError(std::io::Error),
     
@@ -38,6 +41,7 @@ impl fmt::Display for RembgError {
         match self {
             RembgError::ImageError(e) => write!(f, "Image processing error: {}", e),
             RembgError::OnnxError(e) => write!(f, "ONNX Runtime error: {}", e),
+            RembgError::OnnxRuntimeNotAvailable(msg) => write!(f, "ONNX Runtime not available: {}", msg),
             RembgError::IoError(e) => write!(f, "I/O error: {}", e),
             RembgError::ModelNotFound(name) => write!(f, "Model not found: {}", name),
             RembgError::InvalidInput(msg) => write!(f, "Invalid input: {}", msg),

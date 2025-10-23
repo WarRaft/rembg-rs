@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to download ONNX models for background removal
+# Script to download ONNX Runtime library and models for background removal
 
 set -e
 
@@ -10,6 +10,10 @@ set -e
 
 # Directory where models will be stored
 MODEL_DIR="models"
+
+# ONNX Runtime configuration
+ONNX_VERSION="1.16.0"
+ONNX_URL="https://github.com/microsoft/onnxruntime/releases/download/v${ONNX_VERSION}/onnxruntime-linux-x64-${ONNX_VERSION}.tgz"
 
 # Base URL for model downloads
 BASE_URL="https://github.com/danielgatis/rembg/releases/download/v0.0.0"
@@ -25,7 +29,45 @@ SILUETA_URL="$BASE_URL/silueta.onnx"
 SILUETA_FILE="$MODEL_DIR/silueta.onnx"
 
 # ============================================================================
-# Download Functions
+# Install ONNX Runtime
+# ============================================================================
+
+echo "🔍 Checking ONNX Runtime installation..."
+
+if ldconfig -p 2>/dev/null | grep -q "libonnxruntime.so"; then
+    echo "✅ ONNX Runtime already installed"
+else
+    echo "📦 Installing ONNX Runtime ${ONNX_VERSION}..."
+    
+    cd /tmp
+    
+    # Download ONNX Runtime
+    echo "  Downloading (~16 MB)..."
+    wget -q --show-progress "$ONNX_URL"
+    
+    # Extract
+    echo "  Extracting..."
+    tar -xzf "onnxruntime-linux-x64-${ONNX_VERSION}.tgz"
+    
+    # Install to /usr/local/lib
+    echo "  Installing to /usr/local/lib..."
+    sudo cp "onnxruntime-linux-x64-${ONNX_VERSION}/lib/libonnxruntime.so"* /usr/local/lib/
+    
+    # Update library cache
+    echo "  Updating library cache..."
+    sudo ldconfig
+    
+    # Cleanup
+    echo "  Cleaning up..."
+    rm -rf "onnxruntime-linux-x64-${ONNX_VERSION}"*
+    
+    echo "✅ ONNX Runtime installed successfully"
+fi
+
+echo ""
+
+# ============================================================================
+# Download Models
 # ============================================================================
 
 # Create models directory
