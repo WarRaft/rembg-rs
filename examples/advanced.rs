@@ -7,7 +7,7 @@
 //! - Using binary mode for clean cutouts
 
 use rembg::{Rembg, RemovalOptions};
-use image::open;
+use image::{open, GenericImageView};
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
