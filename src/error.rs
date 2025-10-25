@@ -78,5 +78,3 @@ impl From<ndarray::ShapeError> for RembgError {
         RembgError::ShapeError(err.to_string())
     }
 }
-
-pub type Result<T> = std::result::Result<T, RembgError>;

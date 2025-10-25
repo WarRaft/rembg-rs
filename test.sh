@@ -22,7 +22,7 @@ MODEL_FILE="$MODEL_DIR/u2net.onnx"
 IMAGE_EXTENSIONS=("jpg" "jpeg" "png" "JPG" "JPEG" "PNG")
 
 # Output file suffix
-OUTPUT_SUFFIX="_no_bg"
+OUTPUT_SUFFIX=""
 
 # Mask threshold (0–255) – higher values = more aggressive background removal
 # Recommended values:
