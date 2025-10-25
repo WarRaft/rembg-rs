@@ -1,12 +1,11 @@
 use clap::Parser;
 use image::{DynamicImage, open};
-use rembg::{Rembg, RemovalOptions};
+use rembg_rs::cli::cli::Args;
+use rembg_rs::manager::ModelManager;
+use rembg_rs::options::RemovalOptions;
+use rembg_rs::rembg::rembg;
 use std::path::Path;
 use std::process;
-
-mod cli;
-
-use cli::Args;
 
 fn main() {
     let args = Args::parse();
@@ -17,15 +16,14 @@ fn main() {
     println!("Model: {}", args.model);
     println!();
 
-    // Load model from file
-    println!("📦 Loading model...");
-    let mut rembg = match Rembg::new(Path::new(&args.model)) {
-        Ok(r) => r,
+    let manager = match ModelManager::from_file(Path::new(&args.model)) {
+        Ok(m) => m,
         Err(e) => {
-            eprintln!("❌ Failed to initialize: {}", e);
+            eprintln!("❌ Failed to manager: {}", e);
             process::exit(1);
         }
     };
+
     println!("✅ Model loaded\n");
 
     // Load image
@@ -46,7 +44,7 @@ fn main() {
     println!("🖼️  Processing image...");
 
     // Process the image
-    let result = match rembg.remove_background(img, &options) {
+    let result = match rembg(manager, img, &options) {
         Ok(result) => result,
         Err(e) => {
             eprintln!("❌ Error: {}", e);
@@ -68,7 +66,7 @@ fn main() {
         println!("🎭 Saving mask to: {:?}", mask_path);
 
         // Save mask as transparent RGBA
-        let mask_img = create_transparent_mask(result.mask());
+        let mask_img = result.mask();
         if let Err(e) = mask_img.save(&mask_path) {
             eprintln!("⚠️  Failed to save mask: {}", e);
         }
@@ -97,19 +95,4 @@ fn generate_mask_path(output_path: &Path) -> std::path::PathBuf {
     let parent = output_path.parent().unwrap_or(Path::new("."));
 
     parent.join(format!("{}_mask.{}", file_stem, extension))
-}
-
-/// Create transparent RGBA image from grayscale mask
-fn create_transparent_mask(mask: &image::ImageBuffer<image::Luma<u8>, Vec<u8>>) -> DynamicImage {
-    use image::{Rgba, RgbaImage};
-
-    let (width, height) = mask.dimensions();
-    let mut rgba_img = RgbaImage::new(width, height);
-
-    for (x, y, pixel) in mask.enumerate_pixels() {
-        let alpha = pixel.0[0];
-        rgba_img.put_pixel(x, y, Rgba([255, 255, 255, alpha]));
-    }
-
-    DynamicImage::ImageRgba8(rgba_img)
 }

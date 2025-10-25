@@ -10,12 +10,12 @@ keywords = ["image", "background-removal", "neural-network", "onnx", "computer-v
 categories = ["multimedia::images", "science"]
 
 [lib]
-name = "rembg"
+name = "rembg_rs"
 path = "src/lib.rs"
 
 [[bin]]
 name = "rembg-rs"
-path = "src/main.rs"
+path = "src/bin/main.rs"
 required-features = ["cli"]
 
 [features]
