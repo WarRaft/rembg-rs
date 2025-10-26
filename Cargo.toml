@@ -37,6 +37,13 @@ ndarray = "0.15"
 # Command-line argument parsing (optional, only for CLI)
 clap = { version = "4.4", features = ["derive"], optional = true }
 
+derive_builder = "0.20.2"
+imageproc = "0.25.0"
+anyhow = "1.0.100"
+oxipng = "9.1.5"
+imagequant = "4.4.1"
+png = "0.18.0"
+
 [profile.release]
 lto = true
 codegen-units = 1

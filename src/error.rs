@@ -7,31 +7,31 @@ use std::fmt;
 pub enum RembgError {
     /// Image processing error from the `image` crate
     ImageError(image::ImageError),
-    
+
     /// ONNX Runtime error
     OnnxError(ort::OrtError),
-    
+
     /// ONNX Runtime library not available
     OnnxRuntimeNotAvailable(String),
-    
+
     /// I/O error (file operations)
     IoError(std::io::Error),
-    
+
     /// Model file not found
     ModelNotFound(String),
-    
+
     /// Invalid input provided
     InvalidInput(String),
-    
+
     /// Unsupported image format
     UnsupportedFormat(String),
-    
+
     /// Image preprocessing failed
     PreprocessingError(String),
-    
+
     /// Tensor operation failed
     TensorError(String),
-    
+
     /// Array shape error
     ShapeError(String),
 }
@@ -41,12 +41,16 @@ impl fmt::Display for RembgError {
         match self {
             RembgError::ImageError(e) => write!(f, "Image processing error: {}", e),
             RembgError::OnnxError(e) => write!(f, "ONNX Runtime error: {}", e),
-            RembgError::OnnxRuntimeNotAvailable(msg) => write!(f, "ONNX Runtime not available: {}", msg),
+            RembgError::OnnxRuntimeNotAvailable(msg) => {
+                write!(f, "ONNX Runtime not available: {}", msg)
+            }
             RembgError::IoError(e) => write!(f, "I/O error: {}", e),
             RembgError::ModelNotFound(name) => write!(f, "Model not found: {}", name),
             RembgError::InvalidInput(msg) => write!(f, "Invalid input: {}", msg),
             RembgError::UnsupportedFormat(fmt) => write!(f, "Unsupported image format: {}", fmt),
-            RembgError::PreprocessingError(reason) => write!(f, "Image preprocessing failed: {}", reason),
+            RembgError::PreprocessingError(reason) => {
+                write!(f, "Image preprocessing failed: {}", reason)
+            }
             RembgError::TensorError(op) => write!(f, "Tensor operation failed: {}", op),
             RembgError::ShapeError(msg) => write!(f, "Shape error: {}", msg),
         }
@@ -76,5 +80,23 @@ impl From<std::io::Error> for RembgError {
 impl From<ndarray::ShapeError> for RembgError {
     fn from(err: ndarray::ShapeError) -> Self {
         RembgError::ShapeError(err.to_string())
+    }
+}
+
+impl From<oxipng::PngError> for RembgError {
+    fn from(err: oxipng::PngError) -> Self {
+        RembgError::InvalidInput(err.to_string())
+    }
+}
+
+impl From<png::EncodingError> for RembgError {
+    fn from(err: png::EncodingError) -> Self {
+        RembgError::InvalidInput(err.to_string())
+    }
+}
+
+impl From<imagequant::liq_error> for RembgError {
+    fn from(err: imagequant::liq_error) -> Self {
+        RembgError::InvalidInput(err.to_string())
     }
 }

@@ -63,4 +63,8 @@ pub struct Args {
         help = "Save the mask as a separate grayscale image alongside the output"
     )]
     pub save_mask: bool,
+
+    /// Save mask as separate file
+    #[arg(long = "sticker", help = "Process sticker")]
+    pub sticker: bool,
 }

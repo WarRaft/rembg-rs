@@ -6,3 +6,5 @@ pub mod manager;
 pub mod options;
 pub mod rembg;
 pub mod result;
+mod clean_sticker_border;
+pub mod compress_png;

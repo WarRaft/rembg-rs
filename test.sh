@@ -43,7 +43,10 @@ BINARY_MODE=true
 # Default: false (only save result)
 # true: Save mask alongside result (useful for debugging and adjustments)
 # false: Only save the result image
-SAVE_MASK=true
+SAVE_MASK=false
+
+
+STICKER=true
 
 # ============================================================================
 # Validation
@@ -145,6 +148,11 @@ for INPUT_IMAGE in "${VALID_IMAGES[@]}"; do
     # Add save mask if enabled
     if [ "$SAVE_MASK" = true ]; then
         CMD_ARGS+=(-s)
+    fi
+
+    if [ "$STICKER" = true ]; then
+        # Add sticker mode flag for clean hard edges + white outline
+        CMD_ARGS+=(--sticker)
     fi
     
     # Run background removal with library path set to the release dir

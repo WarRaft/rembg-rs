@@ -1,8 +1,9 @@
 use clap::Parser;
 use image::{DynamicImage, open};
 use rembg_rs::cli::cli::Args;
+use rembg_rs::compress_png::compress_png;
 use rembg_rs::manager::ModelManager;
-use rembg_rs::options::RemovalOptions;
+use rembg_rs::options::RemovalOptionsBuilder;
 use rembg_rs::rembg::rembg;
 use std::path::Path;
 use std::process;
@@ -37,14 +38,17 @@ fn main() {
     };
 
     // Configure options
-    let options = RemovalOptions::new()
-        .with_threshold(args.threshold)
-        .with_binary_mode(args.binary);
+    let options = RemovalOptionsBuilder::default()
+        .threshold(args.threshold)
+        .binary(args.binary)
+        .sticker(args.sticker)
+        .build()
+        .unwrap();
 
     println!("🖼️  Processing image...");
 
     // Process the image
-    let result = match rembg(manager, img, &options) {
+    let result = match rembg(&manager, img, &options) {
         Ok(result) => result,
         Err(e) => {
             eprintln!("❌ Error: {}", e);
@@ -54,10 +58,26 @@ fn main() {
 
     // Save the result
     println!("💾 Saving result...");
-    let result_img = DynamicImage::ImageRgba8(result.image().clone());
-    if let Err(e) = result_img.save(&args.output) {
-        eprintln!("❌ Failed to save result: {}", e);
-        process::exit(1);
+    let result_img: DynamicImage = DynamicImage::ImageRgba8(result.image().clone());
+    if option_env!("NONE").is_none() {
+        match compress_png(&result_img) {
+            Ok(bytes) => match std::fs::write(&args.output, bytes) {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("❌ Writing failed: {e}");
+                    process::exit(1);
+                }
+            },
+            Err(e) => {
+                eprintln!("❌ Compression failed: {e}");
+                process::exit(1);
+            }
+        }
+    } else {
+        if let Err(e) = result_img.save(&args.output) {
+            eprintln!("❌ Failed to save result: {}", e);
+            process::exit(1);
+        }
     }
 
     // Save mask if requested

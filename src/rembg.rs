@@ -1,3 +1,4 @@
+use crate::clean_sticker_border::clean_sticker_border;
 use crate::error::RembgError;
 use crate::manager::ModelManager;
 use crate::options::RemovalOptions;
@@ -6,7 +7,7 @@ use image::{DynamicImage, GenericImageView, ImageBuffer, Luma, RgbImage, Rgba, R
 use ndarray::{Array4, Axis};
 
 pub fn rembg(
-    manager: ModelManager,
+    manager: &ModelManager,
     image: DynamicImage,
     options: &RemovalOptions,
 ) -> Result<RemovalResult, RembgError> {
@@ -153,6 +154,10 @@ pub fn rembg(
             };
 
             result.put_pixel(x, y, Rgba([src.0[0], src.0[1], src.0[2], alpha]));
+        }
+
+        if options.sticker {
+            result = clean_sticker_border(&result);
         }
 
         result
