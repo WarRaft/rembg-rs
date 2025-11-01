@@ -13,12 +13,6 @@ pub fn rembg(
 ) -> Result<RemovalResult, RembgError> {
     let (original_width, original_height) = image.dimensions();
 
-    println!(
-        "Original image size: {}x{}",
-        original_width, original_height
-    );
-    println!("Options: {:?}", options);
-
     let preprocessed = {
         // Convert to RGB if not already
         let rgb_img = image.to_rgb8();
