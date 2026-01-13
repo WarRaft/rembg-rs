@@ -1,7 +1,10 @@
 use crate::error::RembgError;
 use ndarray::Array;
 use ort::{
-    session::{Session, builder::{GraphOptimizationLevel, SessionBuilder}},
+    session::{
+        Session,
+        builder::{GraphOptimizationLevel, SessionBuilder},
+    },
     value::Value,
 };
 use std::path::Path;
@@ -39,11 +42,13 @@ impl ModelManager {
         let input_tensor = Value::from_array((shape.as_slice(), data))?;
 
         // Get input/output names before running inference (to avoid borrow issues)
-        let input_name = self.session.inputs[0].name.clone();
-        let output_name = self.session.outputs[0].name.clone();
+        let input_name = { String::from(self.session.inputs()[0].name()) };
+        let output_name = { String::from(self.session.outputs()[0].name()) };
 
         // Run inference
-        let outputs = self.session.run(ort::inputs![input_name.as_str() => input_tensor])?;
+        let outputs = self
+            .session
+            .run(ort::inputs![input_name.as_str() => input_tensor])?;
 
         // Extract output tensor by name
         let output = outputs
@@ -51,15 +56,18 @@ impl ModelManager {
             .ok_or_else(|| RembgError::TensorError("No output from model".to_string()))?;
 
         // Extract tensor data - try_extract_tensor returns (shape, data slice)
-        let (shape, data) = output.try_extract_tensor::<f32>()
+        let (shape, data) = output
+            .try_extract_tensor::<f32>()
             .map_err(|e| RembgError::TensorError(format!("Failed to extract tensor: {}", e)))?;
 
         // Convert shape from i64 to usize
         let shape_vec: Vec<usize> = shape.as_ref().iter().map(|&x| x as usize).collect();
 
         // Create ndarray from data
-        let output_array = Array::from_shape_vec(shape_vec.as_slice(), data.to_vec())
-            .map_err(|e| RembgError::TensorError(format!("Failed to create output array: {}", e)))?;
+        let output_array =
+            Array::from_shape_vec(shape_vec.as_slice(), data.to_vec()).map_err(|e| {
+                RembgError::TensorError(format!("Failed to create output array: {}", e))
+            })?;
 
         // Reshape to 4D if needed
         let output_shape = output_array.shape();
